@@ -316,6 +316,7 @@ def help():
 # python TP1.py reloadapi
 # python TP1.py top 10
 # python TP1.py top 10 --save
+# python TP1.py top 3 --save
 # python TP1.py top 1000 --save
 # python TP1.py top 1 --save
 # python TP1.py search "altar.io" "Braga" 3
