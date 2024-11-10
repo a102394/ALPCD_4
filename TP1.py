@@ -218,8 +218,12 @@ def skills(skills:str, data_ini:str, data_fim:str, save: bool = False):
     """
     general_results = getdata() # Obtém dados da API ou cache
     
-    data_ini = dt.strptime(data_ini, '%Y-%m-%d') # Converte as datas para o formato correto
-    data_fim = dt.strptime(data_fim, '%Y-%m-%d') # Converte as datas para o formato correto
+    # Tenta converter as datas para o formato correto
+    try:
+        data_ini = dt.strptime(data_ini, '%Y-%m-%d')  # Converte a data de início
+        data_fim = dt.strptime(data_fim, '%Y-%m-%d')  # Converte a data de fim
+    except ValueError:
+        return echo_vermelho("Erro: Uma ou ambas as datas fornecidas são inválidas. Por favor, use o formato 'YYYY-MM-DD'.")
     
     # Skills para lista de strings "python,react" -> ['python','react']
     skills_list = [skill.strip() for skill in skills.split(",")] 
