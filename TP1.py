@@ -21,19 +21,16 @@ def save_to_csv(data, filename):
     """
     Função para salvar os dados em um arquivo CSV.
     """
-    #keys = ['id', 'job_title', 'company', 'company_description', 'published_at', 'salary', 'location']
     keys = ['job_title', 'company', 'company_description', 'published_at', 'salary', 'location']
     
     with open(filename, mode='w', newline='', encoding='utf-8') as file:
         writer = csv.DictWriter(file, fieldnames=keys)
         writer.writeheader()  # Escreve o cabeçalho
         for item in data:
+            item = vaga_restricted_format_csv(item)
             # Garantir que as descrições de empresa que contenham quebras de linha sejam tratadas como texto literal
             item['company_description'] = item['company_description'].replace("\n", " ").replace("\r", " ")
-            
-            # Remover o campo 'id' antes de salvar no CSV
-            item.pop('id')
-            
+
             # Escreve as linhas com os dados
             writer.writerow(item)  # Cada item é uma linha no arquivo CSV
     
@@ -101,12 +98,11 @@ def getdata(force_reload: bool = False):
 
     return general_results
 
-def vaga_json_format(item):
+def vaga_restricted_format_csv(item):
     """
-    Função para formatar os dados de uma vaga em formato JSON com as informações selecionadas.
+    Função para formatar os dados de uma vaga com as informações selecionadas.
     """
     return {
-        'id': item.get('id', 'N/A'),  # Caso 'id' não exista, retorna 'N/A'
         'job_title': item.get('title', 'N/A'),  # Caso 'title' não exista, retorna 'N/A'
         'company': item['company'].get('name', 'N/A') if 'company' in item else 'N/A',
         'company_description': item['company'].get('description', 'N/A') if 'company' in item else 'N/A', 
@@ -114,8 +110,6 @@ def vaga_json_format(item):
         'salary': item.get('wage', 'N/A'),  # Caso 'wage' não exista, retorna 'N/A'
         'location': [loc['name'] for loc in item.get('locations', [])] if item.get('locations') else ['N/A'],  # Pega todas as localizações
     }
-            #'url': item.get('company', {}).get('url', 'N/A'),
-            #'employment_type': item.get('types', [{}])[0].get('name', 'N/A'),
 
 @app.command()
 def top(n: int, save: bool = False):
@@ -124,7 +118,7 @@ def top(n: int, save: bool = False):
     Exibe algumas informações selecionadas sobre as vagas.
     """
     general_data = getdata()  # Obtém dados da API ou cache
-    found_jobs = [vaga_json_format(item) for item in general_data[0:n]] # Exibe os dados das 'n' vagas mais recentes    
+    found_jobs = [item for item in general_data[0:n]] # Exibe os dados das 'n' vagas mais recentes    
     
     # Se 'save_csv' for True, salva os dados em CSV
     if save:
@@ -141,9 +135,6 @@ def search(company: str, location: str, num_jobs: int, save: bool = False):
     Função para procurar vagas de emprego de uma empresa específica em uma localidade e que seja full time,
     limitando o número de vagas retornadas.
     """
-    
-    # print(f"Procurando trabalhos para Empresa: {company}, Localidade: {location}, Número de Trabalhos: {num_jobs}")
-    
     general_data = getdata() # Obtém dados da API ou cache
     found_jobs = [] # Inicializa / reseta a lista de trabalhos encontrados
     
@@ -154,7 +145,7 @@ def search(company: str, location: str, num_jobs: int, save: bool = False):
         
         # Verifica se a vaga corresponde ao nome da empresa e se a localização está na lista
         if (company_name.lower() == company.lower() and any(location.lower() in loc.lower() for loc in job_locations) and 'full-time' in job_type):
-            found_jobs.append(vaga_json_format(item)) # Adiciona o trabalho encontrado à lista
+            found_jobs.append(item) # Adiciona o trabalho encontrado à lista
             # print(f"\nTrabalho encontrado: {item['title']} na empresa {company_name} na localidade {location}")
         
         if len(found_jobs) >= num_jobs: # Se o número de vagas encontrado atingir o limite, saímos do loop
@@ -178,7 +169,6 @@ def salary(job_id: int):
     Função para extrair e exibir o salário de uma vaga a partir de seu job_id.
     Caso o salário não esteja disponível, achar com expressoes regulares.
     """
-    
     general_data = getdata()  # Obtém dados da API ou cache
     
     # Expressões regulares para encontrar salários no corpo da descrição
@@ -210,15 +200,10 @@ def skills(skills:str, data_ini:str, data_fim:str, save: bool = False):
     Função para buscar dados de vagas de emprego com base nas skills e no intervalo de datas.
     A saída é no formato JSON, com os dados das vagas que atendem aos critérios.
     """
-    ## EXEMPLO DE USO ##
-    # skills "inteligencia artificial" "2024-1-1" "2024-12-31"
-    # skills "Data" "2024-1-1" "2024-12-31"  
-    # skills "inteligencia artificial, Python" "2024-1-1" "2024-12-31"
+    general_results = getdata() # Obtém dados da API ou cache
     
     data_ini = dt.strptime(data_ini, '%Y-%m-%d') # Converte as datas para o formato correto
     data_fim = dt.strptime(data_fim, '%Y-%m-%d') # Converte as datas para o formato correto
-    
-    general_results = getdata() # Obtém dados da API ou cache
     
     # Skills para lista de strings "python,react" -> ['python','react']
     skills_list = [skill.strip() for skill in skills.split(",")] 
@@ -230,7 +215,7 @@ def skills(skills:str, data_ini:str, data_fim:str, save: bool = False):
         
         # Verifica se a vaga está dentro do intervalo de datas e contém todas as skills desejadas
         if data_ini <= data_trabalho <= data_fim and all(re.search(criar_regex_sem_acentos(skill), item['body'], re.IGNORECASE) for skill in skills_list):
-            found_jobs.append(vaga_json_format(item)) # Adiciona à lista de vagas encontradas
+            found_jobs.append(item) # Adiciona à lista de vagas encontradas
     
     # Se 'save_csv' for True, salva os dados em CSV
     if save and found_jobs:
@@ -353,13 +338,16 @@ def help():
 # python TP1.py top 1 --save
 # python TP1.py search "altar.io" "Braga" 3
 # python TP1.py search "altar.io" "Braga" 3 --save
-# python TP1.py search "altar.io" "Lisboa" 10 --save
+# # python TP1.py search "altar.io" "Lisboa" 10 --save
 # python TP1.py salary 491881, 491763, 491690, 491671, 491626, 490686, 491483, 491458
 # python TP1.py skills "Data, Python, DJango" "2024-1-1" "2024-12-31"
 # python TP1.py skills "Python" "2024-1-1" "2024-12-31"
 # python TP1.py skills "Python" "2024-1-1" "2024-12-31" --save
 # python TP1.py skills "Python" "2024-10-01" "2024-10-31"
 # python TP1.py skills "Python" "2024-10-01" "2024-10-31" --save
+# skills "inteligencia artificial" "2024-1-1" "2024-12-31"
+# skills "Data" "2024-1-1" "2024-12-31"  
+# skills "inteligencia artificial, Python" "2024-1-1" "2024-12-31"
 
 # Inicializa o aplicativo Typer
 if __name__ == "__main__":
