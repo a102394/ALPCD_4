@@ -283,32 +283,65 @@ def help():
     Ajuda com os comandos
     """
     print("""
-####  HELP  #############################################################################################################################################
-# python {path} help : Exibe ajuda com todos os comandos.                                                                                               #
-# python {path} top <n> [--save] : Mostra as 'n' vagas mais recentes. Se '--save' for fornecido, salva os resultados em um arquivo CSV chamado          #
-#                                "top_vagas.csv".                                                                                                       #
-#        Exemplo: python {path} top 5 --save                                                                                                            #
-#               Mostra as 5 vagas mais recentes e salva os resultados em "top_vagas.csv".                                                               #
-#                                                                                                                                                       #
-# python {path} search <empresa> <localidade> <n> [--save] : Procura vagas para uma empresa específica em uma localidade específica (full-time).        #
-#               Limita a quantidade de resultados para 'n'. Se '--save' for fornecido, salva os resultados em um arquivo CSV chamado "search_vagas.csv".#
-#        Exemplo: python {path} search "altar.io" "Braga" 3 --save                                                                                      #
-#               Busca 3 vagas da empresa "altar.io" em "Braga" e salva os resultados em "search_vagas.csv".                                             # 
-#                                                                                                                                                       #
-# python {path} salary <id> : Exibe o salário de acordo com o ID da vaga.                                                                               #
-#        Exemplo: python {path} salary 491881                                                                                                           #
-#               Exibe o salário da vaga com ID 491881.                                                                                                  #
-#                                                                                                                                                       #
-# python {path} skills <skills> <data_ini> <data_fim> [--save] : Procura vagas que exigem habilidades específicas dentro de um intervalo de datas.      #
-#               O parâmetro 'skills' pode ser uma lista de habilidades separadas por vírgula. Se '--save' for fornecido, salva os resultados em um      #
-#               arquivo CSV chamado "skills_vagas.csv".                                                                                                 #
-#        Exemplo: python {path} skills "Python, Data Science" "2024-01-01" "2024-12-31" --save                                                          #
-#               Busca vagas que exigem "Python" e "Data Science" no intervalo de 01/01/2024 a 31/12/2024 e salva os resultados em "skills_vagas.csv".   #
-#                                                                                                                                                       #
-# python {path} reloadapi : Força o recarregamento dos dados da API, ignorando o cache.                                                                 #
-#        Exemplo: python {path} reloadapi                                                                                                               #
-#               Atualiza o cache com os dados mais recentes da API.                                                                                     #
-#########################################################################################################################################################
+####  HELP  #########################################################################################################################################################   
+#                                                                                                                                                                   #   
+# python TP1.py help : Exibe ajuda detalhada sobre todos os comandos e como utilizá-los.                                                                            #   
+#           Exemplo: python TP1.py help                                                                                                                             #
+#                  Exibe todas as opções e parâmetros disponíveis no script.                                                                                        #
+#                                                                                                                                                                   #
+# python TP1.py top <n> [--save] : Mostra as 'n' vagas mais recentes. Se '--save' for fornecido, salva os resultados em um arquivo CSV chamado "top_vagas.csv".     #
+#                                                                                                                                                                   #
+#           Parâmetros:                                                                                                                                             #
+#             <n>       : O número de vagas que você deseja exibir. Substitua <n> por um número inteiro (ex: 5, 10, 20).                                            #
+#             --save    : Se fornecido, salva as vagas exibidas em um arquivo CSV chamado "top_vagas.csv".                                                          #
+#                                                                                                                                                                   #           
+#           Exemplo:                                                                                                                                                #
+#             python TP1.py top 5 --save                                                                                                                            #
+#                 Exibe as 5 vagas mais recentes e salva os resultados em "top_vagas.csv".                                                                          #
+#                                                                                                                                                                   #
+# python TP1.py search <empresa> <localidade> <n> [--save] : Procura vagas para uma empresa específica em uma localidade específica (somente vagas full-time).      #
+#               Limita a quantidade de resultados retornados para 'n'. Se '--save' for fornecido, salva os resultados em um arquivo CSV chamado "search_vagas.csv". #
+#                                                                                                                                                                   #
+#           Parâmetros:                                                                                                                                             #
+#             <empresa> : Nome da empresa para a qual você deseja procurar vagas. Coloque o nome da empresa entre aspas se contiver espaços (ex: "altar.io").       #
+#             <localidade>: Nome da cidade ou localidade onde você deseja buscar as vagas (ex: Lisboa, Porto).                                                      #
+#             <n>       : Número de vagas a ser retornado. Substitua <n> por um número inteiro (ex: 3, 10).                                                         #
+#             --save    : Se fornecido, salva os resultados encontrados em um arquivo CSV chamado "search_vagas.csv".                                               #
+#                                                                                                                                                                   #           
+#           Exemplo:                                                                                                                                                #
+#             python TP1.py search "altar.io" "Braga" 3 --save                                                                                                      #
+#                 Busca 3 vagas da empresa "altar.io" na localidade "Braga" e salva os resultados em "search_vagas.csv".                                            #
+#                                                                                                                                                                   #
+# python TP1.py salary <id> : Exibe o salário da vaga de acordo com o ID da vaga.                                                                                   #
+#                                                                                                                                                                   #
+#           Parâmetros:                                                                                                                                             #
+#             <id>      : O ID da vaga para a qual você deseja saber o salário. O ID deve ser um número inteiro único (ex: 491881).                                 #
+#                                                                                                                                                                   #           
+#           Exemplo:                                                                                                                                                #
+#             python TP1.py salary 491881                                                                                                                           #
+#                 Exibe o salário da vaga com ID 491881.                                                                                                            #
+#                                                                                                                                                                   #
+# python TP1.py skills <skills> <data_ini> <data_fim> [--save] : Procura vagas que exigem habilidades específicas dentro de um intervalo de datas.                  #
+#               O parâmetro 'skills' pode ser uma lista de habilidades separadas por vírgula. O intervalo de datas deve ser fornecido no formato 'YYYY-MM-DD'.      #
+#               Se '--save' for fornecido, salva os resultados em um arquivo CSV chamado "skills_vagas.csv".                                                        #
+#                                                                                                                                                                   #   
+#           Parâmetros:                                                                                                                                             #
+#             <skills>   : Lista de habilidades requeridas para as vagas. Use vírgulas para separar múltiplas habilidades (ex: "Python, Data Science").             #
+#             <data_ini> : Data de início do intervalo de busca (formato: 'YYYY-MM-DD'). Exemplo: "2024-01-01".                                                     #
+#             <data_fim> : Data final do intervalo de busca (formato: 'YYYY-MM-DD'). Exemplo: "2024-12-31".                                                         #
+#             --save     : Se fornecido, salva os resultados encontrados em um arquivo CSV chamado "skills_vagas.csv".                                              #
+#                                                                                                                                                                   #           
+#           Exemplo:                                                                                                                                                #
+#             python TP1.py skills "Python, Data Science" "2024-01-01" "2024-12-31" --save                                                                          #
+#                 Busca vagas que exigem "Python" e "Data Science" no intervalo de 01/01/2024 a 31/12/2024 e salva os resultados em "skills_vagas.csv".             #
+#                                                                                                                                                                   #   
+# python TP1.py reloadapi : Força o recarregamento dos dados da API, ignorando qualquer cache armazenado.                                                           #
+#                                                                                                                                                                   # 
+#           Exemplo:                                                                                                                                                #
+#             python TP1.py reloadapi                                                                                                                               #
+#                 Atualiza o cache com os dados mais recentes da API.                                                                                               #
+#                                                                                                                                                                   #
+#####################################################################################################################################################################
 """)
     
 # Comandos Teste #
