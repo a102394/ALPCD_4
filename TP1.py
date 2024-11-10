@@ -17,6 +17,14 @@ general_results = [] # Lista global para armazenar os dados das vagas
 
 CACHE_FILE = "cache_vagas.json"  # Caminho do arquivo de cache
 
+def echo_verde(msg: str):
+    """Exibe uma mensagem em verde."""
+    typer.echo(typer.style(msg, fg=typer.colors.GREEN))
+
+def echo_vermelho(msg: str):
+    """Exibe uma mensagem em vermelho."""
+    typer.echo(typer.style(msg, fg=typer.colors.RED))
+
 def save_to_csv(data, filename):
     """
     Função para salvar os dados em um arquivo CSV.
@@ -40,7 +48,7 @@ def load_cache():
         with open(CACHE_FILE, 'r', encoding='utf-8') as file:
             return json.load(file)
     else:
-        typer.echo(typer.style("Arquivo de cache não encontrado.", fg=typer.colors.RED))
+        echo_vermelho("Arquivo de cache não encontrado.")
         return(getdata(force_reload=True))
 
 def fetch_from_api():
@@ -55,7 +63,7 @@ def fetch_from_api():
         total_vagas = response_data.get('total', 0)
         
         if total_vagas == 0:
-            typer.echo(typer.style("Nenhuma vaga encontrada.", fg=typer.colors.RED))  # Exibe em vermelho
+            echo_vermelho("Nenhuma vaga encontrada.")
             return []
 
         # Calcula o número total de páginas
@@ -72,13 +80,13 @@ def fetch_from_api():
         """Salva os dados de vagas no cache"""
         with open(CACHE_FILE, 'w', encoding='utf-8') as file:
             json.dump(all_jobs, file, ensure_ascii=False, indent=4)
-        typer.echo(typer.style(f"Cache salvo no arquivo '{CACHE_FILE}'.", fg=typer.colors.GREEN))  # Exibe em verde
+        echo_verde(f"Cache salvo no arquivo '{CACHE_FILE}'.")
         sleep(5)
         
         return all_jobs
     
     except requests.RequestException as e:
-        print(f"Erro ao acessar a API: {e}")
+        echo_vermelho(f"Erro ao acessar a API: {e}")
         return []
 
 def getdata(force_reload: bool = False):
@@ -90,7 +98,7 @@ def getdata(force_reload: bool = False):
     
     if force_reload:
         # Se for forçado o reload, buscamos da API e salvamos no cache
-        print("Carregando dados da API...")
+        echo_verde("Carregando dados da API...")
         general_results = fetch_from_api()
     else:
         # Caso contrário, carregamos do ficheiro 'cache_vagas.json'
@@ -127,7 +135,7 @@ def top(n: int, save: bool = False):
     print(json.dumps(found_jobs,indent=4))  # Altera para formato JSON as vagas encontradas e exibe os resultados
     
     if save:
-        typer.echo(typer.style(f"Resultados salvos em 'top_vagas.csv'", fg=typer.colors.GREEN))
+        echo_verde(f"Resultados salvos em 'top_vagas.csv'")
 
 @app.command()
 def search(company: str, location: str, num_jobs: int, save: bool = False):
@@ -146,7 +154,6 @@ def search(company: str, location: str, num_jobs: int, save: bool = False):
         # Verifica se a vaga corresponde ao nome da empresa e se a localização está na lista
         if (company_name.lower() == company.lower() and any(location.lower() in loc.lower() for loc in job_locations) and 'full-time' in job_type):
             found_jobs.append(item) # Adiciona o trabalho encontrado à lista
-            # print(f"\nTrabalho encontrado: {item['title']} na empresa {company_name} na localidade {location}")
         
         if len(found_jobs) >= num_jobs: # Se o número de vagas encontrado atingir o limite, saímos do loop
             break
@@ -158,10 +165,10 @@ def search(company: str, location: str, num_jobs: int, save: bool = False):
     if found_jobs: # Exibe o resultado no formato JSON ou uma mensagem caso não encontre resultados
         print(json.dumps(found_jobs,indent=4))
     else:
-        print("Nenhum trabalho encontrado para os critérios especificados.")
+        echo_vermelho("Nenhum trabalho encontrado para os critérios especificados.")
     
-    if save:
-        typer.echo(typer.style(f"Resultados salvos em 'search_vagas.csv'", fg=typer.colors.GREEN))
+    if save and found_jobs:
+        echo_verde(f"Resultados salvos em 'search_vagas.csv'")
 
 @app.command()
 def salary(job_id: int):
@@ -174,8 +181,17 @@ def salary(job_id: int):
     # Expressões regulares para encontrar salários no corpo da descrição
     salary_patterns = [
         r"(\d{1,3}(?:[\.,]\d{3})*(?:[\.,]\d+)?\s?(?:euros|€|bruto|neto|por mês|mensal))",  # Ex: 3000€, 3000 euros, 2500 por mês
-        r"(\d+\s?k\s?€)",# Ex: 2.5k €
+        r"(\d+\s?k\s?€)",# Ex: 2.5k €  
+        r"(\d+(?:[\.,]\d+)?\s?(k|K|mil)\s?(€|euros)?)",  # Ex: 2k €, 2.5k euros # Ex: 2.5k € (abreviação de mil em euros)
+        r"(\d{1,3}(?:,\d{3})*(?:[\.,]\d+)?\s?(€|euros|bruto|neto|por mês|mensal|anual|por ano))", # Ex: 5,000 (usando vírgula como separador de milhar) 
+        r"(\d+(?:[\.,]\d+)?\s?(por mês|mensal|anual|ano))",  # Ex: 2500 por mês, 3500 anuais
+        r"(\d+(?:[\.,]\d+)?\s?(k|K|mil)\s?(€|euros))",  # Ex: 5k €, 10K euros
+        r"(\d{1,3}(?:\.\d{3})*(?:,\d+)?\s?(€|euros))",  # Ex: 10000,00 €, 1.000,00 euros
     ]
+    
+    #
+    # NAO FOI ENCONTRADA NENHUMA REFERÊNCIA DE SALÁRIO NOS BODYS :(
+    #
     
     for item in general_data:
         if item['id'] == job_id:
@@ -192,7 +208,7 @@ def salary(job_id: int):
             print(f"Id: {job_id} - {item['title']}, {item['company']['name']} ({locations}): {salary}")
             return print(salary)
             
-    print(f"Vaga com o id {job_id} não encontrada.") # Caso não encontre a vaga com o job_id
+    echo_vermelho(f"Vaga com o id {job_id} não encontrada.") # Caso não encontre a vaga com o job_id
         
 @app.command()
 def skills(skills:str, data_ini:str, data_fim:str, save: bool = False):
@@ -225,10 +241,10 @@ def skills(skills:str, data_ini:str, data_fim:str, save: bool = False):
     if found_jobs:
         print(json.dumps(found_jobs, indent=4))
     else:
-        print("Nenhuma vaga encontrada para os critérios informados.")
+        echo_vermelho("Nenhuma vaga encontrada para os critérios informados.")
     
-    if save:
-        typer.echo(typer.style(f"Resultados salvos em 'skills_vagas.csv'", fg=typer.colors.GREEN))
+    if save and found_jobs:
+        echo_verde(f"Resultados salvos em 'skills_vagas.csv'")
 
 def criar_regex_sem_acentos(palavra):
     """
@@ -338,7 +354,7 @@ def help():
 # python TP1.py top 1 --save
 # python TP1.py search "altar.io" "Braga" 3
 # python TP1.py search "altar.io" "Braga" 3 --save
-# # python TP1.py search "altar.io" "Lisboa" 10 --save
+# python TP1.py search "altar.io" "Lisboa" 10 --save
 # python TP1.py salary 491881, 491763, 491690, 491671, 491626, 490686, 491483, 491458
 # python TP1.py skills "Data, Python, DJango" "2024-1-1" "2024-12-31"
 # python TP1.py skills "Python" "2024-1-1" "2024-12-31"
