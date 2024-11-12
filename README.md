@@ -4,6 +4,9 @@
 **Ioannis Nikolaos Kokkinovrachos** a106820 <br>	
 **Joao Pedro Castro Magalhaes Alves** a102394	
 
+(**Antes de enviarmos o progesso do trabalho para este repositório nós mandamos a maior parte da TP1 neste repositório https://github.com/dahhvta/workshopgit, entao o progresso todo 
+da TP1 está colocada em ambos os repositórios!**)
+
 ## Passos para uso
 
 ### 1. **Clonar o Repositório**: 
