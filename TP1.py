@@ -7,6 +7,7 @@ import os
 import typer
 import csv
 from time import sleep
+from bs4 import BeautifulSoup
 
 app = typer.Typer()
 
@@ -25,17 +26,24 @@ def echo_vermelho(msg: str):
     """Exibe uma mensagem em vermelho."""
     typer.echo(typer.style(msg, fg=typer.colors.RED))
 
-def save_to_csv(data, filename):
+def save_to_csv(data, filename,ambitionbox_extra = False):
     """
     Função para salvar os dados em um arquivo CSV.
     """
     keys = ['job_title', 'company', 'company_description', 'published_at', 'salary', 'location']
+    if(ambitionbox_extra): 
+        keys.append('ambition_box_rating')
+        keys.append('ambition_box_description')
+        keys.append('ambition_box_benefits')
+        
+    print (keys)
     
     with open(filename, mode='w', newline='', encoding='utf-8') as file:
         writer = csv.DictWriter(file, fieldnames=keys)
         writer.writeheader()  # Escreve o cabeçalho
+        
         for item in data:
-            item = vaga_restricted_format_csv(item)
+            item = vaga_restricted_format_csv(item,ambitionbox_extra)
             # Garantir que as descrições de empresa que contenham quebras de linha sejam tratadas como texto literal
             item['company_description'] = item['company_description'].replace("\n", " ").replace("\r", " ")
 
@@ -89,6 +97,60 @@ def fetch_from_api():
         echo_vermelho(f"Erro ao acessar a API: {e}")
         return []
 
+def fetch_ambitionbox(company_name: str):
+    """
+    Fetch company details from AmbitionBox.
+    """
+    base_url = "https://www.ambitionbox.com"
+    overview_url = f"{base_url}/overview/"
+    benefits_url = f"{base_url}/benefits/"
+    
+    # Clean company name (e.g., remove "Portugal")
+    cleaned_name = re.sub(r'\s*portugal\s*', '', company_name, flags=re.IGNORECASE).strip()
+    company_espace = cleaned_name.replace(' ', '-').lower()
+    
+    # Headers to avoid being blocked by AmbitionBox
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:98.0) Gecko/20100101 Firefox/98.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Cache-Control": "max-age=0"
+    }
+    
+    try:
+        overview_response = requests.get(f"{overview_url}{company_espace}-overview", headers=headers)
+        soup = BeautifulSoup(overview_response.text, "html.parser")
+        
+        # Extract general rating
+        rating_tag = soup.find("span", class_="css-1jxf684 text-primary-text font-pn-700 text-xl !text-base")
+        rating = float(rating_tag.text.strip()) if rating_tag else None
+
+        #Extract company description
+        description_tag = soup.find("div", class_="text-sm font-pn-400 [&_ul]:list-disc [&_ol]:list-[auto] [&_ul]:ml-5 [&_ol]:ml-5")
+        description = description_tag.text.strip() if description_tag else None
+
+        # Extract company benefits
+        benefits_response = requests.get(f"{benefits_url}{company_espace}-benefits", headers=headers)
+        benefits_soup = BeautifulSoup(benefits_response.text, "html.parser")
+        benefits_tags = benefits_soup.find_all("h3", class_="css-146c3p1 text-primary-text font-pn-600 text-[16px] leading-[24px] mb-1 sm:max-w-[223px] sm:line-clamp-1")
+        benefits = [tag.text.strip() for tag in benefits_tags] if benefits_tags else None
+
+        # Return extracted details as dictionary
+        return {
+            "rating": rating,
+            "ambition_box_description": description,
+            "ambition_box_benefits": benefits
+        }
+    except:
+        echo_vermelho("No additional information was found while fetching AmbitionBox details")
+
 def getdata(force_reload: bool = False):
     """
     Função para buscar dados das vagas de emprego. Se `force_reload` for True, 
@@ -106,18 +168,33 @@ def getdata(force_reload: bool = False):
 
     return general_results
 
-def vaga_restricted_format_csv(item):
+def vaga_restricted_format_csv(item,ambitionbox_extra = False):
     """
     Função para formatar os dados de uma vaga com as informações selecionadas.
+    Agora também adiciona dados do AmbitionBox se fornecido.
     """
-    return {
-        'job_title': item.get('title', 'N/A'),  # Caso 'title' não exista, retorna 'N/A'
-        'company': item['company'].get('name', 'N/A') if 'company' in item else 'N/A',
-        'company_description': item['company'].get('description', 'N/A') if 'company' in item else 'N/A', 
-        'published_at': item.get('publishedAt', 'N/A'),  # Caso 'publishedAt' não exista, retorna 'N/A'
-        'salary': item.get('wage', 'N/A'),  # Caso 'wage' não exista, retorna 'N/A'
-        'location': [loc['name'] for loc in item.get('locations', [])] if item.get('locations') else ['N/A'],  # Pega todas as localizações
+    print(item)  # Verifique o conteúdo de 'item'
+    
+    # Garantir que 'company' seja um dicionário, caso contrário, usa-se um dicionário vazio
+    company = item['company'] if isinstance(item['company'], dict) else {}
+    
+    # Formatação e retorno dos dados
+    result = {
+        'job_title': item['title'] if 'title' in item else 'N/A',  # Acessa 'title' diretamente
+        'company': company['name'] if 'name' in company else 'N/A',  # Acessa 'name' diretamente
+        'company_description': company['description'] if 'description' in company else 'N/A',  # Acessa 'description' diretamente
+        'published_at': item['publishedAt'] if 'publishedAt' in item else 'N/A',  # Acessa 'publishedAt' diretamente
+        'salary': item['wage'] if 'wage' in item else 'N/A',  # Acessa 'wage' diretamente
+        'location': [loc['name'] for loc in item['locations']] if 'locations' in item else ['N/A'],  # Acessa 'locations' diretamente
     }
+    
+    # Se 'ambitionbox_extra' for True, inclui dados do AmbitionBox
+    if ambitionbox_extra:
+        result['ambition_box_rating'] = company['ambition_box_rating'] if 'ambition_box_rating' in company else 'N/A'
+        result['ambition_box_description'] = company['ambition_box_description'] if 'ambition_box_description' in company else 'N/A'
+        result['ambition_box_benefits'] = company['ambition_box_benefits'] if 'ambition_box_benefits' in company else 'N/A'
+    
+    return result
 
 @app.command()
 def top(n: int, save: bool = False):
@@ -209,7 +286,7 @@ def salary(job_id: int):
             return print(salary)
             
     echo_vermelho(f"Vaga com o id {job_id} não encontrada.") # Caso não encontre a vaga com o job_id
-        
+
 @app.command()
 def skills(skills:str, data_ini:str, data_fim:str, save: bool = False):
     """
@@ -250,6 +327,52 @@ def skills(skills:str, data_ini:str, data_fim:str, save: bool = False):
     if save and found_jobs:
         echo_verde(f"Resultados salvos em 'skills_vagas.csv'")
 
+@app.command()
+def get(job_id:int, save: bool = False):
+    """
+    Fetch details of a specific job from ItJobs API and enrich with AmbitionBox data.
+    """
+
+    general_results = getdata()
+    
+    job_found = None
+    for job in general_results:
+        if job["id"] == job_id:
+            job_found= job
+            break
+        
+    # Caso não tenha sido encontrado umm job com esse Id
+    if not job_found:
+        echo_vermelho(f"Job ID {job_id} not found.")
+        return {}
+    
+    company_name = job_found["company"]["name"]
+    company_details = job_found["company"]
+    
+    #Get data from ambitionbox
+    ambitionbox_data = fetch_ambitionbox(company_name)
+    
+    if ambitionbox_data:
+        company_details["ambition_box_rating"] = ambitionbox_data.get("rating")
+        company_details["ambition_box_description"] = ambitionbox_data.get("ambition_box_description")
+        company_details["ambition_box_benefits"] = ambitionbox_data.get("ambition_box_benefits")
+    
+    # Add ambitionbox info to company details back to job details
+    job_found["company"] = company_details
+
+    # Se 'save_csv' for True, salva os dados em CSV
+    if save and job_found:
+        save_to_csv([job_found], "get_vaga.csv",True)
+        
+    # Exibe o resultado em JSON ou uma mensagem caso nenhuma vaga seja encontrada
+    if job_found:
+        print(json.dumps(job_found, indent=4))
+    else:
+        echo_vermelho("Nenhuma vaga encontrada para os critérios informados.")
+    
+    if save and job_found:
+        echo_verde(f"Resultados salvos em 'get_vaga.csv'")
+    
 def criar_regex_sem_acentos(palavra):
     """
     Esta função cria uma expressão regular que ignora os acentos em uma palavra
@@ -368,6 +491,7 @@ def help():
 # skills "inteligencia artificial" "2024-1-1" "2024-12-31"
 # skills "Data" "2024-1-1" "2024-12-31"  
 # skills "inteligencia artificial, Python" "2024-1-1" "2024-12-31"
+# python TP1.py get 493936
 
 # Inicializa o aplicativo Typer
 if __name__ == "__main__":
