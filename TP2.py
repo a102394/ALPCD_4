@@ -675,3 +675,64 @@ def help():
 # Inicializa o aplicativo Typer
 if __name__ == "__main__":
     app()
+
+
+
+@app.command()
+def generate_statistics(group_by: str, save_csv: bool = False):
+    """
+    Gera estatísticas agrupadas por zona ou tipo de trabalho e salva em CSV, se solicitado.
+    
+    Args:
+    - group_by (str): 'zone' para agrupar por zona ou 'type' para agrupar por tipo de trabalho.
+    - save_csv (bool): Se True, salva os dados gerados em um arquivo CSV.
+    """
+    try:
+        # Carregar os dados
+        general_results = getdata()  # Dados das vagas
+
+        # Agrupar os dados
+        if group_by not in ["zone", "type"]:
+            raise ValueError("group_by deve ser 'zone' ou 'type'.")
+        
+        all_groups = {}
+        if group_by == "zone":
+            for job in general_results:
+                if "locations" in job and job["locations"]:
+                    for location in job["locations"]:
+                        zone = location["name"]
+                        if zone not in all_groups:
+                            all_groups[zone] = {}
+                        grouped_titles = group_similar_titles([job["title"]])
+                        for title, jobs in grouped_titles.items():
+                            if title not in all_groups[zone]:
+                                all_groups[zone][title] = []
+                            all_groups[zone][title].extend(jobs)
+
+        elif group_by == "type":
+            for job in general_results:
+                if "types" in job:
+                    for job_type in job["types"]:
+                        type_name = job_type["name"]
+                        if type_name not in all_groups:
+                            all_groups[type_name] = {}
+                        grouped_titles = group_similar_titles([job["title"]])
+                        for title, jobs in grouped_titles.items():
+                            if title not in all_groups[type_name]:
+                                all_groups[type_name][title] = []
+                            all_groups[type_name][title].extend(jobs)
+
+        # Salvar os resultados em CSV, se solicitado
+        file_name = f"statistics_{group_by}.csv"
+        if save_csv:
+            save_statistics_to_csv(all_groups, file_name, show=True)
+            echo_verde(f"Estatísticas salvas no arquivo '{file_name}' com sucesso.")
+
+        # Exibir as estatísticas na tela
+        for group, titles in all_groups.items():
+            print(f"\n{group}:")
+            for title, jobs in titles.items():
+                print(f"  - {title}: {len(jobs)} vagas")
+    
+    except Exception as e:
+        echo_vermelho(f"Ocorreu um erro: {str(e)}")
