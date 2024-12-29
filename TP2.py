@@ -679,60 +679,52 @@ if __name__ == "__main__":
 
 
 @app.command()
-def generate_statistics(group_by: str, save_csv: bool = False):
+def list_skills(job_title: str):
     """
-    Gera estatísticas agrupadas por zona ou tipo de trabalho e salva em CSV, se solicitado.
+    Lista as principais skills (top 10) pedidas para um determinado trabalho no AmbitionBox.
     
     Args:
-    - group_by (str): 'zone' para agrupar por zona ou 'type' para agrupar por tipo de trabalho.
-    - save_csv (bool): Se True, salva os dados gerados em um arquivo CSV.
+        job_title (str): O título do trabalho a ser pesquisado.
     """
     try:
-        # Carregar os dados
-        general_results = getdata()  # Dados das vagas
+        # Gerar a URL de busca no AmbitionBox
+        url = f"https://www.ambitionbox.com/jobs/search?tag={job_title.replace(' ', '%20')}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:98.0) Gecko/20100101 Firefox/98.0",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Cache-Control": "max-age=0",
+        }
 
-        # Agrupar os dados
-        if group_by not in ["zone", "type"]:
-            raise ValueError("group_by deve ser 'zone' ou 'type'.")
-        
-        all_groups = {}
-        if group_by == "zone":
-            for job in general_results:
-                if "locations" in job and job["locations"]:
-                    for location in job["locations"]:
-                        zone = location["name"]
-                        if zone not in all_groups:
-                            all_groups[zone] = {}
-                        grouped_titles = group_similar_titles([job["title"]])
-                        for title, jobs in grouped_titles.items():
-                            if title not in all_groups[zone]:
-                                all_groups[zone][title] = []
-                            all_groups[zone][title].extend(jobs)
+        # Fazer a requisição
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            echo_vermelho("Não foi possível acessar o site AmbitionBox.")
+            return
 
-        elif group_by == "type":
-            for job in general_results:
-                if "types" in job:
-                    for job_type in job["types"]:
-                        type_name = job_type["name"]
-                        if type_name not in all_groups:
-                            all_groups[type_name] = {}
-                        grouped_titles = group_similar_titles([job["title"]])
-                        for title, jobs in grouped_titles.items():
-                            if title not in all_groups[type_name]:
-                                all_groups[type_name][title] = []
-                            all_groups[type_name][title].extend(jobs)
+        # Parsear a página com BeautifulSoup
+        soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Salvar os resultados em CSV, se solicitado
-        file_name = f"statistics_{group_by}.csv"
-        if save_csv:
-            save_statistics_to_csv(all_groups, file_name, show=True)
-            echo_verde(f"Estatísticas salvas no arquivo '{file_name}' com sucesso.")
+        # Extrair skills (ajustar seletor ao formato real da página)
+        skills_section = soup.find_all("span", class_="skill-tag")  # Personalizar a classe conforme a estrutura HTML real
+        skills = [skill.get_text(strip=True) for skill in skills_section]
 
-        # Exibir as estatísticas na tela
-        for group, titles in all_groups.items():
-            print(f"\n{group}:")
-            for title, jobs in titles.items():
-                print(f"  - {title}: {len(jobs)} vagas")
-    
+        # Contar a frequência de cada skill
+        skill_counts = {}
+        for skill in skills:
+            skill_counts[skill] = skill_counts.get(skill, 0) + 1
+
+        # Ordenar as skills por frequência
+        sorted_skills = sorted(skill_counts.items(), key=lambda x: x[1], reverse=True)
+
+        # Selecionar as 10 principais skills
+        top_skills = [{"skill": skill, "count": count} for skill, count in sorted_skills[:10]]
+
+        # Exibir as skills no terminal em formato JSON
+        print(json.dumps(top_skills, indent=4))
+
     except Exception as e:
         echo_vermelho(f"Ocorreu um erro: {str(e)}")
