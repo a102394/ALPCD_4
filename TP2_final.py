@@ -441,6 +441,59 @@ def criar_regex_sem_acentos(palavra):
             
     return palavra_regex # Retorna a expressão regular criada
 
+#alinia c)
+
+@app.command()
+def list_skills(job_title: str):
+    """
+    Fetch the top 10 skills for a specific job title from AmbitionBox.
+    """
+    # Generate the search URL
+    base_url = "https://www.ambitionbox.com/jobs/search"
+    search_url = f"{base_url}?tag={job_title.replace(' ', '%20')}"
+    
+    # Headers to avoid being blocked
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:98.0) Gecko/20100101 Firefox/98.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    }
+    
+    try:
+        # Make the request
+        response = requests.get(search_url, headers=headers)
+        if response.status_code != 200:
+            typer.secho(f"Failed to fetch the page. Status code: {response.status_code}", fg=typer.colors.RED)
+            return
+
+        # Parse the page
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Extract skills using the correct selector
+        skills_section = soup.find_all("span", class_="styles__skillTag___3KBvk")  # Adjust the selector if needed
+        skills = [skill.get_text(strip=True) for skill in skills_section]
+
+        if not skills:
+            typer.secho("No skills were found for the specified job title.", fg=typer.colors.RED)
+            return
+
+        # Count the frequency of each skill
+        skill_counts = {}
+        for skill in skills:
+            skill_counts[skill] = skill_counts.get(skill, 0) + 1
+
+        # Sort and extract the top 10 skills
+        sorted_skills = sorted(skill_counts.items(), key=lambda x: x[1], reverse=True)
+        top_skills = [{"skill": skill, "count": count} for skill, count in sorted_skills[:10]]
+
+        # Print the results in JSON format
+        print(json.dumps(top_skills, indent=4))
+
+    except Exception as e:
+        typer.secho(f"An error occurred: {str(e)}", fg=typer.colors.RED)
+
+
+
+
 @app.command()
 def reloadapi():
     """Regarrega o ficheiro json com dados da API"""
